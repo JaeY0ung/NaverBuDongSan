@@ -45,12 +45,18 @@ def naver_crawler(url):
     # 페이지의 맨 밑까지 스크롤
     # scroll_down(crawler)
 
+    fieldnames = ['name', 'type', 'price', '소재지', '매물특징', '계약/전용면적', '해당층/총층', '융자금', 
+                 '월관리비', '방향', '입주가능일', '주차가능여부', '총사무실수', '총주차대수', 
+                 '난방(방식/연료)', '사용승인일', '건축물 용도', '매물번호', '매물설명', '중개사', 
+                 '중개보수', '상한요율', '주구조', '현재업종', '추천업종', '용도지역', '권리금']
     # 사무실 프레임들 가져오기
     samusils = crawler.find_elements(By.CLASS_NAME, 'item_link')
     # 가게들 정보 크롤링 시작
     for samusil in samusils:
         samusil_dict = dict()
-        # name, type, address, contact = null, null, null, null
+        for fieldname in fieldnames:
+            samusil_dict[fieldname] = null
+
         samusil.click()
         crawler.implicitly_wait(1)
 
@@ -82,33 +88,33 @@ def naver_crawler(url):
         crawler.implicitly_wait(2)
 
         # 중개보수까지의 테이블 데이터
-        try:
-            infos = crawler.find_elements(By.CLASS_NAME, 'info_table_item')
-            for i in range(len(infos)):
-                row = infos[i]
-                if i < len(infos) - 1:
-                    # 테이블의 한 행에 정보가 하나 있거나 두개 있을 때도 있어 여러개로 받음
-                    data_keys = row.find_elements(By.CLASS_NAME, 'table_th')
-                    data_values = row.find_elements(By.CLASS_NAME, 'table_td')
-                    for i in range(len(data_keys)):
-                        samusil_dict[data_keys[i].text] = data_values[i].text
-                        print(f'{data_keys[i].text}: {data_values[i].text}')
-                else:
-                    data_value = row.find_element(By.CLASS_NAME, 'table_td')
-                    samusil_dict['상한요율'] = data_value.text
-                    print(f'상한요율: {data_value.text}')
-        except:
-            pass
+        infos = crawler.find_elements(By.CLASS_NAME, 'info_table_item')
+        for row in infos:
+            data_keys = row.find_elements(By.CLASS_NAME, 'table_th')
+            data_values = row.find_elements(By.CLASS_NAME, 'table_td')
+
+            if len(data_keys) == 0: # 상한요율만 table_th 속성 없음
+                samusil_dict['상한요율'] = data_values[0].text[4:]
+                print(f'상한요율: {data_values[0].text[4:]}')
+            elif data_keys[0].text == '매물설명':
+                data_key = data_keys[0].text
+                data_value = data_values[0].text
+                data_value = data_value.replace('\n','')
+                samusil_dict[data_key] = data_value
+                print(f'{data_key}: {data_value}')
+            else:
+                for j in range(len(data_keys)):
+                    data_key = data_keys[j].text
+                    data_value = data_values[j].text
+                    samusil_dict[data_key] = data_value
+                    print(f'{data_key}: {data_value}')
+
         crawler.implicitly_wait(2)
         crawl_data.append(samusil_dict)
-        print('-----------------------------------')
+        print('--------------------------------------------------------------------')
 
     crawler.quit()
 
-    fieldnames = ['name', 'type', 'price', '소재지', '매물특징', '계약/전용면적', '해당층/총층', '융자금', 
-                 '월관리비', '방향', '입주가능일', '주차가능여부', '총사무실수', '총주차대수', 
-                 '난방(방식/연료)', '사용승인일', '건축물 용도', '매물번호', '매물설명', '중개사', 
-                 '중개보수', '상한요율', '주구조', '현재업종', '추천업종', '용도지역', '권리금']
     with open(f'./csv/신사동.csv', 'w', encoding= 'UTF-8') as file:
         csvWriter = csv.DictWriter(file, fieldnames=fieldnames)
         csvWriter.writeheader()
