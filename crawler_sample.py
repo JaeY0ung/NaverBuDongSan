@@ -6,6 +6,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 import time
 import csv
+from cal_distance import distance
 
 # 페이지의 맨 밑까지 스크롤 (맥 + 34인치 모니터 기준/ 한페이지에 55개 상점 정보)
 def scroll_down(crawler):
@@ -26,6 +27,11 @@ def naver_crawler(url):
 
     # chrome_crawler 설정
     chrome_options = Options() # 브라우저 꺼짐 방지
+
+    # https://stackoverflow.com/questions/71885891/urllib3-exceptions-maxretryerror-httpconnectionpoolhost-localhost-port-5958
+    # To evade the detection as a bot -> 여전히 같은 증상
+    chrome_options.add_argument('--disable-blink-features=AutomationControlled')
+
     chrome_options.add_experimental_option("detach", True)
     chrome_options.add_experimental_option("excludeSwitches", ["enable-logging"]) #불필요한 에러 메세지 삭제
     service = Service(executable_path = ChromeDriverManager().install()) # 크롬 드라이버 최신 버전 자동 설치 후 서비스 만들기
@@ -37,16 +43,8 @@ def naver_crawler(url):
 
     # 크롤링한 상점들의 정보를 담는 리스트
     crawl_data = []
-
-    # crawler.switch_to.default_content()
-    # map = crawler.find_element(By.ID, 'map')
-    # crawler.switch_to.(map)
-    # crawler.implicitly_wait(2) # 로딩이 끝날동안 기다리기
-    # article_map = crawler.find_element(By.ID, 'article_map')
-    # crawler.switch_to.frame(article_map)
-    # crawler.implicitly_wait(2) # 로딩이 끝날동안 기다리기
-
-
+     
+    # 모든 원을 담는 리스트
     circles = []
     # 클래스 띄어쓰기되어 있는 것은 .으로 연결
     outside_circles = crawler.find_elements(By.CLASS_NAME, 'map_cluster--mix.is-outside') # 결과: 원 44개, 매물 4190개 이상 (sum: 4190  정상작동:30  에러: 14번)
@@ -60,117 +58,137 @@ def naver_crawler(url):
     sum, proper_count, empty_count, error_count = 0, 0, 0, 0
     for circle in circles:
         try:
+            # 174\n개 매물
             if len(circle.text) > 4:
                 num_in_circle = int(circle.text[:-4].strip('\n'))
                 sum += num_in_circle
                 proper_count += 1
-                # print(f'원 안에 있는 매물 수: {num_in_circle}')
+            # 174
             else:
                 num_in_circle = int(circle.text.strip('\n'))
                 sum += num_in_circle
                 proper_count += 1
-                # print(f'원 안에 있는 매물 수: {num_in_circle}')
         except:
             if circle.text == '':
                 empty_count += 1
             else:
                 error_count += 1
-                print(f'[ERROR] circle.text: {circle.text}')
-    
-    # print(f'sum: {sum:05d}  정상작동:{proper_count:02d},  에러: {error_count:02d}번,  빈 문자: {empty_count:02d}')
+                # print(f'[ERROR] circle.text: {circle.text}')
+            continue # 패스
+
+        # 화면상 위치 검색
+        style = circle.get_attribute('style') # ex) width: 48.1483px; height: 48.1483px; top: -9357.65px; left: -3266.62px;
+        style = style.replace(';','').replace(': ',':').split(' ')
+        loc_circle = (float(style[2][4:][:-2]), float(style[3][5:][:-2])) # top, left 정보를 소수로 가져오기 (창 크기 바꾼다고 달라지지 않음/ 화면을 드래그해서 시점을 바꾸면 바뀜)
+        center = (-9402.41, -2389.17) # -> 도산공원 위 원(12) 좌표: 이걸 중심 좌표로 사용
+
+        # circle과 도산공원과 500m 이상 떨어져있으면
+        dis = distance(loc_circle, center)
+        if dis > 255: # 대략 500m
+            continue  # 건너뛰기
+
+        # 원 버튼(a 태그) 클릭
+        # circle.click() : 실패
+        circle.send_keys('\n') # 성공! 출처: https://blog.naver.com/PostView.nhn?blogId=kiddwannabe&logNo=221430636045
+
+        # 스크롤 가능하도록 body 중 아무 동작 없는 곳 클릭
+        crawler.find_element(By.CLASS_NAME, "list_contents").click()
+        crawler.implicitly_wait(2)
+
+        # 페이지의 맨 밑까지 스크롤
+        # scroll_down(crawler)
+
+        fieldnames = ['name', 'type', 'price', 'location', 'distance', '소재지', '매물특징', '계약/전용면적', '해당층/총층', '융자금', 
+                     '월관리비', '방향', '입주가능일', '주차가능여부', '총사무실수', '총주차대수', 
+                     '난방(방식/연료)', '사용승인일', '건축물 용도', '매물번호', '매물설명', '중개사', 
+                     '중개보수', '상한요율', '주구조', '현재업종', '추천업종', '용도지역', '권리금', '사용검사일']
+
+        # 사무실 프레임들 가져오기
+        samusils = crawler.find_elements(By.CLASS_NAME, 'item_link')
+        # 가게들 정보 크롤링 시작
+        for samusil in samusils:
+            samusil_dict = dict()
+            # 초기화
+            for fieldname in fieldnames:
+                samusil_dict[fieldname] = null
+
+            # 좌표
+            samusil_dict['location'] = loc_circle
+            # 중심(도산공원)과의 거리
+            samusil_dict['distance'] = dis
+
+            # 사무실 이름 클릭하여 세부 정보 확인
+            samusil.click()
+            crawler.implicitly_wait(1)
+
+            # 이름
+            try:
+                name = crawler.find_elements(By.CLASS_NAME, 'info_title_name')[1].text
+            except:
+                name = null
+            # print(f'name: {name}')
+            samusil_dict['name'] = name
+            crawler.implicitly_wait(2)
+                # 종류
+            try:
+                type = crawler.find_element(By.CLASS_NAME, 'type').text
+            except:
+                type = null
+            print(f'type: {type}')
+            samusil_dict['type'] = type
+            crawler.implicitly_wait(2)
+
+            # 가격
+            try:
+                price = crawler.find_element(By.CLASS_NAME, 'price').text
+            except:
+                price = null
+            print(f'price: {price}')
+            samusil_dict['price'] = price
+            crawler.implicitly_wait(2)
+
+            # 중개보수까지의 테이블 데이터
+            infos = crawler.find_elements(By.CLASS_NAME, 'info_table_item')
+            for row in infos:
+                data_keys = row.find_elements(By.CLASS_NAME, 'table_th')
+                data_values = row.find_elements(By.CLASS_NAME, 'table_td')
+
+                if len(data_keys) == 0: # 상한요율만 table_th 속성 없음
+                    samusil_dict['상한요율'] = data_values[0].text[4:]
+                    print(f'상한요율: {data_values[0].text[4:]}')
+                elif data_keys[0].text == '매물설명':
+                    data_key = data_keys[0].text
+                    data_value = data_values[0].text
+                    data_value = data_value.replace('\n','')
+                    samusil_dict[data_key] = data_value
+                    print(f'{data_key}: {data_value}')
+                else:
+                    for j in range(len(data_keys)):
+                        data_key = data_keys[j].text
+                        data_value = data_values[j].text
+                        samusil_dict[data_key] = data_value
+                        print(f'{data_key}: {data_value}')
+
+            crawler.implicitly_wait(2)
+            crawl_data.append(samusil_dict)
+            print('--------------------------------------------------------------------')
+
+        crawler.quit()
+
+        with open(f'./csv/신사동.csv', 'w', encoding= 'UTF-8') as file:
+            csvWriter = csv.DictWriter(file, fieldnames=fieldnames)
+            csvWriter.writeheader()
+            for row in crawl_data:
+                csvWriter.writerow(row)
+            
+            
+
+    print(f'sum: {sum:05d}  정상작동:{proper_count:02d},  에러: {error_count:02d}번,  빈 문자: {empty_count:02d}')
     # 결과: sum: 12543  정상작동:87,  에러: 06번,  빈 문자: 22 
     # 성공! sum: 13043  정상작동:93,  에러: 00번,  빈 문자: 22
-    
+
     crawler.close()
 
+   
 
-
-
-    # # 스크롤 가능하도록 body 중 아무 동작 없는 곳 클릭
-    # crawler.find_element(By.CLASS_NAME, "list_contents").click()
-    # crawler.implicitly_wait(2)
-
-    # # 페이지의 맨 밑까지 스크롤
-    # # scroll_down(crawler)
-
-
-    # fieldnames = ['name', 'type', 'price', '소재지', '매물특징', '계약/전용면적', '해당층/총층', '융자금', 
-    #              '월관리비', '방향', '입주가능일', '주차가능여부', '총사무실수', '총주차대수', 
-    #              '난방(방식/연료)', '사용승인일', '건축물 용도', '매물번호', '매물설명', '중개사', 
-    #              '중개보수', '상한요율', '주구조', '현재업종', '추천업종', '용도지역', '권리금', '사용검사일']
     
-
-
-    # # 사무실 프레임들 가져오기
-    # samusils = crawler.find_elements(By.CLASS_NAME, 'item_link')
-
-
-    # # 가게들 정보 크롤링 시작
-    # for samusil in samusils:
-    #     samusil_dict = dict()
-    #     for fieldname in fieldnames:
-    #         samusil_dict[fieldname] = null
-
-    #     samusil.click()
-    #     crawler.implicitly_wait(1)
-
-    #     # 이름
-    #     try:
-    #         name = crawler.find_elements(By.CLASS_NAME, 'info_title_name')[1].text
-    #     except:
-    #         name = null
-    #     print(f'name: {name}')
-    #     samusil_dict['name'] = name
-    #     crawler.implicitly_wait(2)
-
-    #     # 종류
-    #     try:
-    #         type = crawler.find_element(By.CLASS_NAME, 'type').text
-    #     except:
-    #         type = null
-    #     print(f'type: {type}')
-    #     samusil_dict['type'] = type
-    #     crawler.implicitly_wait(2)
-
-    #     # 가격
-    #     try:
-    #         price = crawler.find_element(By.CLASS_NAME, 'price').text
-    #     except:
-    #         price = null
-    #     print(f'price: {price}')
-    #     samusil_dict['price'] = price
-    #     crawler.implicitly_wait(2)
-
-    #     # 중개보수까지의 테이블 데이터
-    #     infos = crawler.find_elements(By.CLASS_NAME, 'info_table_item')
-    #     for row in infos:
-    #         data_keys = row.find_elements(By.CLASS_NAME, 'table_th')
-    #         data_values = row.find_elements(By.CLASS_NAME, 'table_td')
-
-    #         if len(data_keys) == 0: # 상한요율만 table_th 속성 없음
-    #             samusil_dict['상한요율'] = data_values[0].text[4:]
-    #             print(f'상한요율: {data_values[0].text[4:]}')
-    #         elif data_keys[0].text == '매물설명':
-    #             data_key = data_keys[0].text
-    #             data_value = data_values[0].text
-    #             data_value = data_value.replace('\n','')
-    #             samusil_dict[data_key] = data_value
-    #             print(f'{data_key}: {data_value}')
-    #         else:
-    #             for j in range(len(data_keys)):
-    #                 data_key = data_keys[j].text
-    #                 data_value = data_values[j].text
-    #                 samusil_dict[data_key] = data_value
-    #                 print(f'{data_key}: {data_value}')
-
-    #     crawler.implicitly_wait(2)
-    #     crawl_data.append(samusil_dict)
-    #     print('--------------------------------------------------------------------')
-
-    # crawler.quit()
-
-    # with open(f'./csv/신사동.csv', 'w', encoding= 'UTF-8') as file:
-    #     csvWriter = csv.DictWriter(file, fieldnames=fieldnames)
-    #     csvWriter.writeheader()
-    #     for row in crawl_data:
-    #         csvWriter.writerow(row)

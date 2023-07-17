@@ -27,8 +27,6 @@
 # 거래 방식 - A1: 매매  B1: 전세  B2: 월세  B3: 단기임대 / 전체: b= 이 없음  (여러개 입력시 B1:B2 이렇게 들어감)   
 
 
-
-
 # < 실제 실행 과정 >   
 # 크롤링 시작페이지 : https://new.land.naver.com/offices?ms=37.5245000,127.0353000,16&a=SG:SMS:GJCG:APTHGJ:GM:TJ&b=B2&e=RETAIL   
 #
@@ -54,11 +52,17 @@
 
 # 
 
-# > 원들을 포함하는 바로 위 div의 CSS_SELECTOR
-# #article_map > div:nth-child(1) > div > div:nth-child(1) > div:nth-child(3) > div:nth-child(1) > div > div:nth-child(1)
+# <에러발생> (http 통신을 빠르게 호출하여 생기는 에러)   
+# raise MaxRetryError(_pool, url, error or ResponseError(cause))
+urllib3.exceptions.MaxRetryError: HTTPConnectionPool(host='localhost', port=50024): Max retries exceeded with url: /session/c9e72439fd30c98229a61426f98fc7b9/element/536673094BFEE0697B073AFA1E95C7C4_element_107/text (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x11638ce80>: Failed to establish a new connection: [Errno 61] Connection refused'))
+# 해결 방법: sleep를 건다   
 
-# > 원들의 CSS_SELECTOR
-# # \32 12211003030LGEOHASH_MIX_ARTICLE
 
-# > 원들의 CLASS_NAME
-# # map_cluster--mix is-outside, map_cluster--mix is-length2, map_cluster--mix is-length3
+
+# './src/IMG/distance_cal.jpeg' 사진 설명 첨부
+#
+# 185: (-9382.89px   -2786.71px)
+# 164: (-9400.1px    -2191.94px)
+#
+# -> 거리: 595.0189385...
+# 실제 대략 거리: 1.17km
