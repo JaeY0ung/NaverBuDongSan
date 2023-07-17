@@ -57,20 +57,30 @@ def naver_crawler(url):
     circles.extend(length3_circles)
     # print(f'원의 개수: {len(circles)}') # 결과: (원의 개수: 115)
 
-    sum = 0
-    proper_count = 0
-    error_count = 0
+    sum, proper_count, empty_count, error_count = 0, 0, 0, 0
     for circle in circles:
         try:
-            num_in_circle = int(circle.text[:-4].strip('\n'))
-            sum += num_in_circle
-            proper_count += 1
-            print(f'원 안에 있는 매물 수: {num_in_circle}')
+            if len(circle.text) > 4:
+                num_in_circle = int(circle.text[:-4].strip('\n'))
+                sum += num_in_circle
+                proper_count += 1
+                # print(f'원 안에 있는 매물 수: {num_in_circle}')
+            else:
+                num_in_circle = int(circle.text.strip('\n'))
+                sum += num_in_circle
+                proper_count += 1
+                # print(f'원 안에 있는 매물 수: {num_in_circle}')
         except:
-            print(f'[ERROR] circle.text: {circle.text}')
-            error_count += 1
+            if circle.text == '':
+                empty_count += 1
+            else:
+                error_count += 1
+                print(f'[ERROR] circle.text: {circle.text}')
     
-    print(f'sum: {sum}  정상작동:{proper_count}  에러: {error_count}번')
+    # print(f'sum: {sum:05d}  정상작동:{proper_count:02d},  에러: {error_count:02d}번,  빈 문자: {empty_count:02d}')
+    # 결과: sum: 12543  정상작동:87,  에러: 06번,  빈 문자: 22 
+    # 성공! sum: 13043  정상작동:93,  에러: 00번,  빈 문자: 22
+    
     crawler.close()
 
 
