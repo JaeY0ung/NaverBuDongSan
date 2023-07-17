@@ -48,9 +48,16 @@ def naver_crawler(url):
     fieldnames = ['name', 'type', 'price', '소재지', '매물특징', '계약/전용면적', '해당층/총층', '융자금', 
                  '월관리비', '방향', '입주가능일', '주차가능여부', '총사무실수', '총주차대수', 
                  '난방(방식/연료)', '사용승인일', '건축물 용도', '매물번호', '매물설명', '중개사', 
-                 '중개보수', '상한요율', '주구조', '현재업종', '추천업종', '용도지역', '권리금']
+                 '중개보수', '상한요율', '주구조', '현재업종', '추천업종', '용도지역', '권리금', '사용검사일']
     # 사무실 프레임들 가져오기
     samusils = crawler.find_elements(By.CLASS_NAME, 'item_link')
+
+    # 제일 안쪽의 map : #article_map > div:nth-child(1) > div
+    # map_cluster--mix is-outside : 내가 선택한 동 밖
+    # map_cluster--mix is-length2 : 내가 선택한 동의 원크기가 2인 것(작은 것)
+    # map_cluster--mix is-length3 : 내가 선택한 동의 원크기가 3인 것(큰 것)
+
+
     # 가게들 정보 크롤링 시작
     for samusil in samusils:
         samusil_dict = dict()
