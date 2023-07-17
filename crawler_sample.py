@@ -49,19 +49,32 @@ def naver_crawler(url):
 
     circles = []
     # 클래스 띄어쓰기되어 있는 것은 .으로 연결
-    outside_circles = crawler.find_elements(By.CLASS_NAME, 'map_cluster--mix.is-outside')
-    length2_circles = crawler.find_elements(By.CLASS_NAME, 'map_cluster--mix.is-length2')
-    length3_circles = crawler.find_elements(By.CLASS_NAME, 'map_cluster--mix.is-length3')
+    outside_circles = crawler.find_elements(By.CLASS_NAME, 'map_cluster--mix.is-outside') # 결과: 원 44개, 매물 4190개 이상 (sum: 4190  정상작동:30  에러: 14번)
+    length2_circles = crawler.find_elements(By.CLASS_NAME, 'map_cluster--mix.is-length2') # 결과: 원 25개, 매물 1034개 이상 (sum: 1034  정상작동:19  에러: 6번)
+    length3_circles = crawler.find_elements(By.CLASS_NAME, 'map_cluster--mix.is-length3') # 결과: 원 46개, 매물 7331개 이상 (sum: 7331  정상작동:38  에러: 8번)
     circles.extend(outside_circles)
     circles.extend(length2_circles)
     circles.extend(length3_circles)
-    print(f'원의 개수: {len(circles)}')
+    # print(f'원의 개수: {len(circles)}') # 결과: (원의 개수: 115)
 
     sum = 0
+    proper_count = 0
+    error_count = 0
     for circle in circles:
-        int(circle.text[:-4])
-        print(f'sum = circle.text[:-4]')
+        try:
+            num_in_circle = int(circle.text[:-4].strip('\n'))
+            sum += num_in_circle
+            proper_count += 1
+            print(f'원 안에 있는 매물 수: {num_in_circle}')
+        except:
+            print(f'[ERROR] circle.text: {circle.text}')
+            error_count += 1
+    
+    print(f'sum: {sum}  정상작동:{proper_count}  에러: {error_count}번')
     crawler.close()
+
+
+
 
     # # 스크롤 가능하도록 body 중 아무 동작 없는 곳 클릭
     # crawler.find_element(By.CLASS_NAME, "list_contents").click()
