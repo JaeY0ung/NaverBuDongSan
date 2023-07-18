@@ -55,8 +55,12 @@ def naver_crawler(url):
     circles.extend(length3_circles)
     # print(f'원의 개수: {len(circles)}') # 결과: (원의 개수: 115)
 
-    sum, proper_count, empty_count, error_count = 0, 0, 0, 0
-    for circle in circles:
+    sum, proper_count, empty_count, error_count, total_count = 0, 0, 0, 0, 0
+    for i in range(len(outside_circles)):
+        print("여기1")
+        outside_circles = crawler.find_elements(By.CLASS_NAME, 'map_cluster--mix.is-outside')
+        circle = circles[i]
+        print("여기2")
         try:
             # 174\n개 매물
             if len(circle.text) > 4:
@@ -96,17 +100,24 @@ def naver_crawler(url):
         crawler.implicitly_wait(2)
 
         # 페이지의 맨 밑까지 스크롤
-        # scroll_down(crawler)
+        scroll_down(crawler)
 
         fieldnames = ['name', 'type', 'price', 'location', 'distance', '소재지', '매물특징', '계약/전용면적', '해당층/총층', '융자금', 
                      '월관리비', '방향', '입주가능일', '주차가능여부', '총사무실수', '총주차대수', 
                      '난방(방식/연료)', '사용승인일', '건축물 용도', '매물번호', '매물설명', '중개사', 
                      '중개보수', '상한요율', '주구조', '현재업종', '추천업종', '용도지역', '권리금', '사용검사일']
 
-        # 사무실 프레임들 가져오기
+        # 사무실들 가져오기
         samusils = crawler.find_elements(By.CLASS_NAME, 'item_link')
         # 가게들 정보 크롤링 시작
-        for samusil in samusils:
+        count = 0
+        for i in range(len(samusils)):
+            samusils = crawler.find_elements(By.CLASS_NAME, 'item_link')
+            print("저기1")
+            samusil = samusils[i]
+            print("저기2")
+            count += 1
+            total_count += 1
             samusil_dict = dict()
             # 초기화
             for fieldname in fieldnames:
@@ -119,6 +130,7 @@ def naver_crawler(url):
 
             # 사무실 이름 클릭하여 세부 정보 확인
             samusil.click()
+            print("저기3")
             crawler.implicitly_wait(1)
 
             # 이름
@@ -136,7 +148,8 @@ def naver_crawler(url):
                 type = null
             print(f'type: {type}')
             samusil_dict['type'] = type
-            crawler.implicitly_wait(2)
+            # crawler.implicitly_wait(2)
+            time.sleep(2)
 
             # 가격
             try:
@@ -145,7 +158,8 @@ def naver_crawler(url):
                 price = null
             print(f'price: {price}')
             samusil_dict['price'] = price
-            crawler.implicitly_wait(2)
+            # crawler.implicitly_wait(2)
+            time.sleep(2)
 
             # 중개보수까지의 테이블 데이터
             infos = crawler.find_elements(By.CLASS_NAME, 'info_table_item')
@@ -171,19 +185,21 @@ def naver_crawler(url):
 
             crawler.implicitly_wait(2)
             crawl_data.append(samusil_dict)
+            print(f'크롤링한 전체 매물 수: {total_count}, 이 circlr에서 크롤링한 매물 수(10개마다 초기화): {count}')
             print('--------------------------------------------------------------------')
+            if count == 3:
+                break
 
-        crawler.quit()
-
-        with open(f'./csv/신사동.csv', 'w', encoding= 'UTF-8') as file:
-            csvWriter = csv.DictWriter(file, fieldnames=fieldnames)
-            csvWriter.writeheader()
-            for row in crawl_data:
-                csvWriter.writerow(row)
+    crawler.quit()
+    with open(f'./csv/신사동.csv', 'w', encoding= 'UTF-8') as file:
+        csvWriter = csv.DictWriter(file, fieldnames=fieldnames)
+        csvWriter.writeheader()
+        for row in crawl_data:
+            csvWriter.writerow(row)
             
-            
-
+    
     print(f'sum: {sum:05d}  정상작동:{proper_count:02d},  에러: {error_count:02d}번,  빈 문자: {empty_count:02d}')
+    
     # 결과: sum: 12543  정상작동:87,  에러: 06번,  빈 문자: 22 
     # 성공! sum: 13043  정상작동:93,  에러: 00번,  빈 문자: 22
 

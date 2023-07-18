@@ -55,7 +55,7 @@
 # <에러발생> (http 통신을 빠르게 호출하여 생기는 에러)   
 # raise MaxRetryError(_pool, url, error or ResponseError(cause))
 urllib3.exceptions.MaxRetryError: HTTPConnectionPool(host='localhost', port=50024): Max retries exceeded with url: /session/c9e72439fd30c98229a61426f98fc7b9/element/536673094BFEE0697B073AFA1E95C7C4_element_107/text (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x11638ce80>: Failed to establish a new connection: [Errno 61] Connection refused'))
-# 해결 방법: sleep를 건다   
+# 해결 방법: sleep를 건다  ->  실패
 
 
 
