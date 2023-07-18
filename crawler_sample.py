@@ -30,7 +30,7 @@ def naver_crawler(url):
 
     # https://stackoverflow.com/questions/71885891/urllib3-exceptions-maxretryerror-httpconnectionpoolhost-localhost-port-5958
     # To evade the detection as a bot -> 여전히 같은 증상
-    chrome_options.add_argument('--disable-blink-features=AutomationControlled')
+    # chrome_options.add_argument('--disable-blink-features=AutomationControlled')
 
     chrome_options.add_experimental_option("detach", True)
     chrome_options.add_experimental_option("excludeSwitches", ["enable-logging"]) #불필요한 에러 메세지 삭제
@@ -39,60 +39,53 @@ def naver_crawler(url):
 
     # 크롤링할 url로 이동
     crawler.get(url) # 웹페이지 해당 주소 이동
-    crawler.implicitly_wait(5) # 로딩이 끝날동안 기다리기
+    time.sleep(3) # 로딩이 끝날동안 기다리기 ( crawler.implicitly_wait(5)은 갑자기 안됨/ 바로 나온줄 알고 실행돼서 그런 것 같음)
+
+    circles = crawler.find_elements(By.CSS_SELECTOR, '#article_map > div:nth-child(1) > div > div:nth-child(1) > div:nth-child(3) > div:nth-child(1) > div > div:nth-child(1) > a')
+    print(f'예상 총 탐색 circle 수: {len(circles)}')
 
     # 크롤링한 상점들의 정보를 담는 리스트
     crawl_data = []
-     
-    # 모든 원을 담는 리스트
-    circles = []
-    # 클래스 띄어쓰기되어 있는 것은 .으로 연결
-    outside_circles = crawler.find_elements(By.CLASS_NAME, 'map_cluster--mix.is-outside') # 결과: 원 44개, 매물 4190개 이상 (sum: 4190  정상작동:30  에러: 14번)
-    length2_circles = crawler.find_elements(By.CLASS_NAME, 'map_cluster--mix.is-length2') # 결과: 원 25개, 매물 1034개 이상 (sum: 1034  정상작동:19  에러: 6번)
-    length3_circles = crawler.find_elements(By.CLASS_NAME, 'map_cluster--mix.is-length3') # 결과: 원 46개, 매물 7331개 이상 (sum: 7331  정상작동:38  에러: 8번)
-    circles.extend(outside_circles)
-    circles.extend(length2_circles)
-    circles.extend(length3_circles)
-    # print(f'원의 개수: {len(circles)}') # 결과: (원의 개수: 115)
-
-    sum, proper_count, empty_count, error_count, total_count = 0, 0, 0, 0, 0
-    for i in range(len(outside_circles)):
-        print("여기1")
-        outside_circles = crawler.find_elements(By.CLASS_NAME, 'map_cluster--mix.is-outside')
-        circle = circles[i]
-        print("여기2")
+    fieldnames = ['매물종류', '거래방식', '가격', '위치', '거리', '소재지', '매물특징', '계약/전용면적', '해당층/총층', '융자금', 
+                '월관리비', '방향', '입주가능일', '주차가능여부', '총사무실수', '총주차대수', 
+                '난방(방식/연료)', '사용승인일', '건축물 용도', '매물번호', '매물설명', '중개사', 
+                '중개보수', '상한요율']
+                #'주구조', '현재업종', '추천업종', '용도지역', '권리금', '사용검사일','사용전력', 
+                #'추천용도', '용적률/건폐율', '현재용도', '대지/연면적', '건축/전용면적', '지상층/지하층', 
+                #'총점포수','대지면적', '국토이용', '진입도로', '도시계획', '토지거래허가구역', '건축허가']
+    
+    num_circle, num_proper_circle, num_circle_empty, num_circle_error = 0, 0, 0, 0
+    num_samusil = 0
+    for circle in circles:
+        num_circle += 1
         try:
-            # 174\n개 매물
-            if len(circle.text) > 4:
+            # print(f'circle.text: {circle.text}')
+            if len(circle.text) > 4: # ex) 174\n개 매물
                 num_in_circle = int(circle.text[:-4].strip('\n'))
-                sum += num_in_circle
-                proper_count += 1
-            # 174
-            else:
+            else: # ex) 174
                 num_in_circle = int(circle.text.strip('\n'))
-                sum += num_in_circle
-                proper_count += 1
+            num_proper_circle += 1
         except:
             if circle.text == '':
-                empty_count += 1
+                num_circle_empty += 1
             else:
-                error_count += 1
-                # print(f'[ERROR] circle.text: {circle.text}')
-            continue # 패스
-
+                num_circle_error += 1
+                # print(f'[ERROR] circle.text: {circle.text}') 디버깅용: 0이 나와야 함
+            continue # 그 circle 패스
         # 화면상 위치 검색
         style = circle.get_attribute('style') # ex) width: 48.1483px; height: 48.1483px; top: -9357.65px; left: -3266.62px;
         style = style.replace(';','').replace(': ',':').split(' ')
         loc_circle = (float(style[2][4:][:-2]), float(style[3][5:][:-2])) # top, left 정보를 소수로 가져오기 (창 크기 바꾼다고 달라지지 않음/ 화면을 드래그해서 시점을 바꾸면 바뀜)
         center = (-9402.41, -2389.17) # -> 도산공원 위 원(12) 좌표: 이걸 중심 좌표로 사용
 
-        # circle과 도산공원과 500m 이상 떨어져있으면
-        dis = distance(loc_circle, center)
-        if dis > 255: # 대략 500m
+        dis = distance(loc_circle, center) # dis output 단위: km
+        # circle과 도산공원과 500m 이상 떨어져 있으면
+        if dis > 0.5: # 0.5km
+            print(f'거리:{dis * 1000}m이므로 제외합니다.')
             continue  # 건너뛰기
+        print(f'거리:{dis * 1000}m이므로 탐색합니다.')
 
-        # 원 버튼(a 태그) 클릭
-        # circle.click() : 실패
+        # 원 버튼(a 태그) 클릭 (circle.click() : 실패)
         circle.send_keys('\n') # 성공! 출처: https://blog.naver.com/PostView.nhn?blogId=kiddwannabe&logNo=221430636045
 
         # 스크롤 가능하도록 body 중 아무 동작 없는 곳 클릭
@@ -100,67 +93,57 @@ def naver_crawler(url):
         crawler.implicitly_wait(2)
 
         # 페이지의 맨 밑까지 스크롤
-        scroll_down(crawler)
-
-        fieldnames = ['name', 'type', 'price', 'location', 'distance', '소재지', '매물특징', '계약/전용면적', '해당층/총층', '융자금', 
-                     '월관리비', '방향', '입주가능일', '주차가능여부', '총사무실수', '총주차대수', 
-                     '난방(방식/연료)', '사용승인일', '건축물 용도', '매물번호', '매물설명', '중개사', 
-                     '중개보수', '상한요율', '주구조', '현재업종', '추천업종', '용도지역', '권리금', '사용검사일','사용전력', '추천용도', '용적률/건폐율', 
-                     '현재용도', '대지/연면적', '건축/전용면적', '지상층/지하층', '총점포수']
+        # scroll_down(crawler)
 
         # 사무실들 가져오기
         samusils = crawler.find_elements(By.CLASS_NAME, 'item_link')
+
+        # 원 안에 있는 samusil 수 체크
+        num_samusil_in_this_circle = 0
         # 가게들 정보 크롤링 시작
-        count = 0
-        for i in range(len(samusils)):
-            samusils = crawler.find_elements(By.CLASS_NAME, 'item_link')
-            print("저기1")
-            samusil = samusils[i]
-            print("저기2")
-            count += 1
-            total_count += 1
-            samusil_dict = dict()
+        for samusil in samusils:
+            num_samusil_in_this_circle += 1
+            num_samusil += 1
             # 초기화
+            samusil_dict = dict()
             for fieldname in fieldnames:
                 samusil_dict[fieldname] = null
 
             # 좌표
-            samusil_dict['location'] = loc_circle
+            samusil_dict['위치'] = loc_circle
             # 중심(도산공원)과의 거리
-            samusil_dict['distance'] = dis
+            samusil_dict['거리'] = dis
 
             # 사무실 이름 클릭하여 세부 정보 확인
             samusil.click()
-            print("저기3")
             crawler.implicitly_wait(1)
 
             # 이름
             try:
-                name = crawler.find_elements(By.CLASS_NAME, 'info_title_name')[1].text
+                매물종류 = crawler.find_elements(By.CLASS_NAME, 'info_title_name')[1].text
             except:
-                name = null
-            # print(f'name: {name}')
-            samusil_dict['name'] = name
+                매물종류 = null
+            samusil_dict['매물종류'] = 매물종류
+            # print(f'매물종류: {매물종류}')
             crawler.implicitly_wait(2)
+
             # 종류
             try:
-                type = crawler.find_element(By.CLASS_NAME, 'type').text
+                거래방식 = crawler.find_element(By.CLASS_NAME, 'type').text
             except:
-                type = null
-            print(f'type: {type}')
-            samusil_dict['type'] = type
-            crawler.implicitly_wait(2)
-            # time.sleep(1)
+                거래방식 = null
+            samusil_dict['거래방식'] = 거래방식
+            print(f'거래방식: {거래방식}')
+            crawler.implicitly_wait(2) # time.sleep(1)
 
             # 가격
             try:
-                price = crawler.find_element(By.CLASS_NAME, 'price').text
+                가격 = crawler.find_element(By.CLASS_NAME, 'price').text
             except:
-                price = null
-            print(f'price: {price}')
-            samusil_dict['price'] = price
-            crawler.implicitly_wait(2)
-            # time.sleep(1)
+                가격 = null
+            samusil_dict['가격'] = 가격
+            print(f'가격: {가격}')
+            crawler.implicitly_wait(2) # time.sleep(1)
 
             # 중개보수까지의 테이블 데이터
             infos = crawler.find_elements(By.CLASS_NAME, 'info_table_item')
@@ -171,31 +154,27 @@ def naver_crawler(url):
                 if len(data_keys) == 0: # 상한요율만 table_th 속성 없음
                     samusil_dict['상한요율'] = data_values[0].text[4:]
                     print(f'상한요율: {data_values[0].text[4:]}')
-
                 elif data_keys[0].text == '매물설명':
                     data_key = data_keys[0].text
                     data_value = data_values[0].text
                     data_value = data_value.replace('\n','')
                     samusil_dict[data_key] = data_value
                     print(f'{data_key}: {data_value}')
-
                 else:
                     for j in range(len(data_keys)):
                         data_key = data_keys[j].text
                         data_value = data_values[j].text
-                        if data_key in fieldnames:
-                            samusil_dict[data_key] = data_value
-                        else:
-                            samusil_dict[data_key] = data_value
+                        if data_key not in fieldnames:
                             fieldnames.append(data_key)
+                        samusil_dict[data_key] = data_value
                         print(f'{data_key}: {data_value}')
 
             crawler.implicitly_wait(2)
             crawl_data.append(samusil_dict)
-            print(f'크롤링한 전체 매물 수: {total_count}, 이 circlr에서 크롤링한 매물 수(10개마다 초기화): {count}')
+            print(f'현재까지 크롤링한 전체 매물 수: {num_samusil}, 이 circlr에서 크롤링한 매물 수(10개마다 초기화): {num_samusil_in_this_circle}')
             print('---------------------------------------------------------------------------------')
             # 샘플을 위해 각 지역별 5개씩만 가져오기
-            if count == 5:
+            if num_samusil_in_this_circle == 10:
                 break
 
     crawler.quit()
@@ -205,14 +184,7 @@ def naver_crawler(url):
         for row in crawl_data:
             csvWriter.writerow(row)
             
-    
-    print(f'sum: {sum:05d}  정상작동:{proper_count:02d},  에러: {error_count:02d}번,  빈 문자: {empty_count:02d}')
-    
-    # 결과: sum: 12543  정상작동:87,  에러: 06번,  빈 문자: 22 
-    # 성공! sum: 13043  정상작동:93,  에러: 00번,  빈 문자: 22
+    print(f'처음 탐색 circle 수: {len(circles)}')
+    print(f'총 circle 수: {num_circle:05d} 정상 circle 수:{num_proper_circle:02d},  에러 circle 수: {num_circle_error:02d}번,  빈 circle 수: {num_circle_empty:02d}')
 
     crawler.close()
-
-   
-
-    
