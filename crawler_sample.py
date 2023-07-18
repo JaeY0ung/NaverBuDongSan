@@ -105,7 +105,8 @@ def naver_crawler(url):
         fieldnames = ['name', 'type', 'price', 'location', 'distance', '소재지', '매물특징', '계약/전용면적', '해당층/총층', '융자금', 
                      '월관리비', '방향', '입주가능일', '주차가능여부', '총사무실수', '총주차대수', 
                      '난방(방식/연료)', '사용승인일', '건축물 용도', '매물번호', '매물설명', '중개사', 
-                     '중개보수', '상한요율', '주구조', '현재업종', '추천업종', '용도지역', '권리금', '사용검사일']
+                     '중개보수', '상한요율', '주구조', '현재업종', '추천업종', '용도지역', '권리금', '사용검사일','사용전력', '추천용도', '용적률/건폐율', 
+                     '현재용도', '대지/연면적', '건축/전용면적', '지상층/지하층', '총점포수']
 
         # 사무실들 가져오기
         samusils = crawler.find_elements(By.CLASS_NAME, 'item_link')
@@ -141,15 +142,15 @@ def naver_crawler(url):
             # print(f'name: {name}')
             samusil_dict['name'] = name
             crawler.implicitly_wait(2)
-                # 종류
+            # 종류
             try:
                 type = crawler.find_element(By.CLASS_NAME, 'type').text
             except:
                 type = null
             print(f'type: {type}')
             samusil_dict['type'] = type
-            # crawler.implicitly_wait(2)
-            time.sleep(2)
+            crawler.implicitly_wait(2)
+            # time.sleep(1)
 
             # 가격
             try:
@@ -158,8 +159,8 @@ def naver_crawler(url):
                 price = null
             print(f'price: {price}')
             samusil_dict['price'] = price
-            # crawler.implicitly_wait(2)
-            time.sleep(2)
+            crawler.implicitly_wait(2)
+            # time.sleep(1)
 
             # 중개보수까지의 테이블 데이터
             infos = crawler.find_elements(By.CLASS_NAME, 'info_table_item')
@@ -170,24 +171,31 @@ def naver_crawler(url):
                 if len(data_keys) == 0: # 상한요율만 table_th 속성 없음
                     samusil_dict['상한요율'] = data_values[0].text[4:]
                     print(f'상한요율: {data_values[0].text[4:]}')
+
                 elif data_keys[0].text == '매물설명':
                     data_key = data_keys[0].text
                     data_value = data_values[0].text
                     data_value = data_value.replace('\n','')
                     samusil_dict[data_key] = data_value
                     print(f'{data_key}: {data_value}')
+
                 else:
                     for j in range(len(data_keys)):
                         data_key = data_keys[j].text
                         data_value = data_values[j].text
-                        samusil_dict[data_key] = data_value
+                        if data_key in fieldnames:
+                            samusil_dict[data_key] = data_value
+                        else:
+                            samusil_dict[data_key] = data_value
+                            fieldnames.append(data_key)
                         print(f'{data_key}: {data_value}')
 
             crawler.implicitly_wait(2)
             crawl_data.append(samusil_dict)
             print(f'크롤링한 전체 매물 수: {total_count}, 이 circlr에서 크롤링한 매물 수(10개마다 초기화): {count}')
-            print('--------------------------------------------------------------------')
-            if count == 3:
+            print('---------------------------------------------------------------------------------')
+            # 샘플을 위해 각 지역별 5개씩만 가져오기
+            if count == 5:
                 break
 
     crawler.quit()
