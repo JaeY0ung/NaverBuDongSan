@@ -40,9 +40,9 @@ def naver_crawler(url):
 
     # 크롤링할 url로 이동
     crawler.get(url) # 웹페이지 해당 주소 이동
-    time.sleep(3)
+    time.sleep(5)
     crawler.maximize_window()
-    time.sleep(3) # 로딩이 끝날동안 기다리기 ( crawler.implicitly_wait(5)은 갑자기 안됨/ 바로 나온줄 알고 실행돼서 그런 것 같음)
+    time.sleep(5) # 로딩이 끝날동안 기다리기 ( crawler.implicitly_wait(5)은 갑자기 안됨/ 바로 나온줄 알고 실행돼서 그런 것 같음)
 
     circles = crawler.find_elements(By.CSS_SELECTOR, '#article_map > div:nth-child(1) > div > div:nth-child(1) > div:nth-child(3) > div:nth-child(1) > div > div:nth-child(1) > a')
     print(f'예상 총 탐색 circle 수: {len(circles)}')
@@ -59,6 +59,8 @@ def naver_crawler(url):
     num_circle, num_proper_circle, num_circle_empty, num_circle_error = 0, 0, 0, 0
     num_samusil = 0
     for circle in circles:
+        # 원 안에 있는 samusil 수 초기화
+        num_samusil_in_this_circle = 0
         num_circle += 1
         print(f'지금까지 탐색한 원의 수: {num_circle}/{len(circles)}')
         try:
@@ -102,8 +104,6 @@ def naver_crawler(url):
         samusils = crawler.find_elements(By.CLASS_NAME, 'item_link')
         crawler.implicitly_wait(2)
 
-        # 원 안에 있는 samusil 수 체크
-        num_samusil_in_this_circle = 0
         # 가게들 정보 크롤링 시작
         for samusil in samusils:
             num_samusil_in_this_circle += 1
@@ -114,11 +114,11 @@ def naver_crawler(url):
                 samusil_dict[fieldname] = null
 
             # 사무실(samusil) 위에 커서 대고 그때 생기는 핀 위치 (클래스네임: btn_current_position) 가져오기
-            ActionChains(crawler).move_to_element(samusil).pause(0.1).perform()
+            ActionChains(crawler).move_to_element(samusil).perform()
             btn_current_position = crawler.find_element(By.CLASS_NAME, 'btn_current_position')
-            crawler.implicitly_wait(2)
+            crawler.implicitly_wait(3)
             current_position = btn_current_position.get_attribute('style')
-            crawler.implicitly_wait(2)
+            crawler.implicitly_wait(3)
             position = current_position.replace('left: ','').replace('top: ','').replace('px','').strip(';').split(';')
             left = float(position[0])
             top = float(position[1])
@@ -135,7 +135,7 @@ def naver_crawler(url):
         
             # 사무실 이름 클릭하여 세부 정보 확인
             samusil.click()
-            crawler.implicitly_wait(1)
+            crawler.implicitly_wait(3)
 
             # 이름
             try:
@@ -144,27 +144,27 @@ def naver_crawler(url):
                 매물종류 = null
             samusil_dict['매물종류'] = 매물종류
             # print(f'매물종류: {매물종류}')
-            crawler.implicitly_wait(2)
+            crawler.implicitly_wait(3)
 
             # 종류
             try:
-                거래방식 = crawler.find_element(By.CLASS_NAME, 'type').text
+                거래방식 = samusil.find_element(By.CLASS_NAME, 'type').text
             except:
                 거래방식 = null
             samusil_dict['거래방식'] = 거래방식
             # print(f'거래방식: {거래방식}')
-            crawler.implicitly_wait(2)
+            crawler.implicitly_wait(3)
 
             # 가격
             try:
-                가격 = crawler.find_element(By.CLASS_NAME, 'price').text
+                가격 = samusil.find_element(By.CLASS_NAME, 'price').text
             except:
                 가격 = null
             samusil_dict['가격'] = 가격
-            # print(f'가격: {가격}')
-            crawler.implicitly_wait(2)
+            print(f'매물의 가격: {가격}')
+            crawler.implicitly_wait(3)
 
-            # 중개보수까지의 테이블 데이터
+            # 중개보수까지의 테이블 데이터 수집
             infos = crawler.find_elements(By.CLASS_NAME, 'info_table_item')
             for row in infos:
                 data_keys = row.find_elements(By.CLASS_NAME, 'table_th')
@@ -175,14 +175,13 @@ def naver_crawler(url):
                     # print(f'상한요율: {data_values[0].text[4:]}')
                 elif data_keys[0].text == '매물설명':
                     data_key = data_keys[0].text
-                    data_value = data_values[0].text
-                    data_value = data_value.replace('\n','')
+                    data_value_before = data_values[0].text
+                    data_value = '&'.join(data_value_before.splitlines())
                     samusil_dict[data_key] = data_value
                     # print(f'{data_key}: {data_value}')
                 else:
                     for j in range(len(data_keys)):
-                        data_key = data_keys[j].text
-                        data_value = data_values[j].text
+                        data_key, data_value = data_keys[j].text, data_values[j].text
                         if data_key in fieldnames:
                             samusil_dict[data_key] = data_value
                             # print(f'{data_key}: {data_value}')
