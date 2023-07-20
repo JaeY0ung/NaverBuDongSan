@@ -54,6 +54,7 @@ def naver_crawler(url):
     
     file = open(f'./csv/신사동.csv', 'w', encoding= 'UTF-8')
     csvWriter = csv.DictWriter(file, fieldnames=fieldnames)
+    csvWriter.writeheader()
 
     num_circle, num_proper_circle, num_circle_empty, num_circle_error = 0, 0, 0, 0
     num_samusil = 0
@@ -112,7 +113,7 @@ def naver_crawler(url):
             for fieldname in fieldnames:
                 samusil_dict[fieldname] = null
 
-            # 사무실(samusil) 위에 커서 대고 그때 생기는 핀 위치 (클래스네임: btn_current_position) 확인
+            # 사무실(samusil) 위에 커서 대고 그때 생기는 핀 위치 (클래스네임: btn_current_position) 가져오기
             ActionChains(crawler).move_to_element(samusil).pause(0.1).perform()
             btn_current_position = crawler.find_element(By.CLASS_NAME, 'btn_current_position')
             crawler.implicitly_wait(2)
@@ -182,10 +183,9 @@ def naver_crawler(url):
                     for j in range(len(data_keys)):
                         data_key = data_keys[j].text
                         data_value = data_values[j].text
-                        if data_key not in fieldnames:
-                            fieldnames.append(data_key)
-                        # samusil_dict[data_key] = data_value
-                        # print(f'{data_key}: {data_value}')
+                        if data_key in fieldnames:
+                            samusil_dict[data_key] = data_value
+                            # print(f'{data_key}: {data_value}')
 
             crawler.implicitly_wait(2)
             csvWriter.writerow(samusil_dict)

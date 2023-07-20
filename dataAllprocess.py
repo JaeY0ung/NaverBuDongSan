@@ -9,6 +9,8 @@ if __name__ == "__main__":
     print("main에서 실행")
     try:
         naver_crawler('https://new.land.naver.com/offices?ms=37.5245000,127.0353000,16&a=SG:SMS:GJCG:APTHGJ:GM:TJ&b=B2&e=RETAIL')
+        print('크롤링 성공!')
     except:
-        pass
+        print('크롤링 실패일수도?')
     csv_to_excel('신사동')
+    print('csv -> excel 파일 생성!')
