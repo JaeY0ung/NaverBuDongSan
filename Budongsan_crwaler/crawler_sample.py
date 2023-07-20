@@ -47,16 +47,14 @@ def naver_crawler(url):
     circles = crawler.find_elements(By.CSS_SELECTOR, '#article_map > div:nth-child(1) > div > div:nth-child(1) > div:nth-child(3) > div:nth-child(1) > div > div:nth-child(1) > a')
     print(f'예상 총 탐색 circle 수: {len(circles)}')
 
-    # 크롤링한 상점들의 정보를 담는 리스트
-    crawl_data = []
     fieldnames = ['매물종류', '거래방식', '가격', '위치', '거리', '소재지', '매물특징', '계약/전용면적', '해당층/총층', '융자금', 
                 '월관리비', '방향', '입주가능일', '주차가능여부', '총사무실수', '총주차대수', 
                 '난방(방식/연료)', '사용승인일', '건축물 용도', '매물번호', '매물설명', '중개사', 
                 '중개보수', '상한요율']
-                #'주구조', '현재업종', '추천업종', '용도지역', '권리금', '사용검사일','사용전력', 
-                #'추천용도', '용적률/건폐율', '현재용도', '대지/연면적', '건축/전용면적', '지상층/지하층', 
-                #'총점포수','대지면적', '국토이용', '진입도로', '도시계획', '토지거래허가구역', '건축허가']
     
+    file = open(f'./csv/신사동.csv', 'w', encoding= 'UTF-8')
+    csvWriter = csv.DictWriter(file, fieldnames=fieldnames)
+
     num_circle, num_proper_circle, num_circle_empty, num_circle_error = 0, 0, 0, 0
     num_samusil = 0
     for circle in circles:
@@ -117,7 +115,9 @@ def naver_crawler(url):
             # 사무실(samusil) 위에 커서 대고 그때 생기는 핀 위치 (클래스네임: btn_current_position) 확인
             ActionChains(crawler).move_to_element(samusil).pause(0.1).perform()
             btn_current_position = crawler.find_element(By.CLASS_NAME, 'btn_current_position')
+            crawler.implicitly_wait(2)
             current_position = btn_current_position.get_attribute('style')
+            crawler.implicitly_wait(2)
             position = current_position.replace('left: ','').replace('top: ','').replace('px','').strip(';').split(';')
             left = float(position[0])
             top = float(position[1])
@@ -152,7 +152,7 @@ def naver_crawler(url):
                 거래방식 = null
             samusil_dict['거래방식'] = 거래방식
             # print(f'거래방식: {거래방식}')
-            crawler.implicitly_wait(2) # time.sleep(1)
+            crawler.implicitly_wait(2)
 
             # 가격
             try:
@@ -161,7 +161,7 @@ def naver_crawler(url):
                 가격 = null
             samusil_dict['가격'] = 가격
             # print(f'가격: {가격}')
-            crawler.implicitly_wait(2) # time.sleep(1)
+            crawler.implicitly_wait(2)
 
             # 중개보수까지의 테이블 데이터
             infos = crawler.find_elements(By.CLASS_NAME, 'info_table_item')
@@ -184,25 +184,19 @@ def naver_crawler(url):
                         data_value = data_values[j].text
                         if data_key not in fieldnames:
                             fieldnames.append(data_key)
-                        samusil_dict[data_key] = data_value
+                        # samusil_dict[data_key] = data_value
                         # print(f'{data_key}: {data_value}')
 
             crawler.implicitly_wait(2)
-            crawl_data.append(samusil_dict)
+            csvWriter.writerow(samusil_dict)
             print(f'현재까지 크롤링한 전체 매물 수: {num_samusil}, 이 circle에서 크롤링한 매물 수(20개마다 초기화): {num_samusil_in_this_circle}')
             print('---------------------------------------------------------------------------------')
             # 샘플을 위해 각 지역별 5개씩만 가져오기
             if num_samusil_in_this_circle == 20:
                 break
-
-    crawler.quit()
-    with open(f'./csv/신사동.csv', 'w', encoding= 'UTF-8') as file:
-        csvWriter = csv.DictWriter(file, fieldnames=fieldnames)
-        csvWriter.writeheader()
-        for row in crawl_data:
-            csvWriter.writerow(row)
             
     print(f'처음 탐색 circle 수: {len(circles)}')
     print(f'총 circle 수: {num_circle:05d} 정상 circle 수:{num_proper_circle:02d},  에러 circle 수: {num_circle_error:02d}번,  빈 circle 수: {num_circle_empty:02d}')
-
+    
+    file.close() # 파일 닫기
     crawler.close()
