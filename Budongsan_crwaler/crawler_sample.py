@@ -4,6 +4,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.action_chains import ActionChains
 import time
 import csv
 from calculator.cal_distance import distance
@@ -39,6 +40,8 @@ def naver_crawler(url):
 
     # 크롤링할 url로 이동
     crawler.get(url) # 웹페이지 해당 주소 이동
+    time.sleep(3)
+    crawler.maximize_window()
     time.sleep(3) # 로딩이 끝날동안 기다리기 ( crawler.implicitly_wait(5)은 갑자기 안됨/ 바로 나온줄 알고 실행돼서 그런 것 같음)
 
     circles = crawler.find_elements(By.CSS_SELECTOR, '#article_map > div:nth-child(1) > div > div:nth-child(1) > div:nth-child(3) > div:nth-child(1) > div > div:nth-child(1) > a')
@@ -58,6 +61,7 @@ def naver_crawler(url):
     num_samusil = 0
     for circle in circles:
         num_circle += 1
+        print(f'지금까지 탐색한 원의 수: {num_circle}/{len(circles)}')
         try:
             # print(f'circle.text: {circle.text}')
             if len(circle.text) > 4: # ex) 174\n개 매물
@@ -73,17 +77,17 @@ def naver_crawler(url):
                 # print(f'[ERROR] circle.text: {circle.text}') 디버깅용: 0이 나와야 함
             continue # 그 circle 패스
         # 화면상 위치 검색
-        style = circle.get_attribute('style') # ex) width: 48.1483px; height: 48.1483px; top: -9357.65px; left: -3266.62px;
-        style = style.replace(';','').replace(': ',':').split(' ')
-        loc_circle = (float(style[2][4:][:-2]), float(style[3][5:][:-2])) # top, left 정보를 소수로 가져오기 (창 크기 바꾼다고 달라지지 않음/ 화면을 드래그해서 시점을 바꾸면 바뀜)
-        center = (-9402.41, -2389.17) # -> 도산공원 위 원(12) 좌표: 이걸 중심 좌표로 사용
-
-        dis = distance(loc_circle, center) # dis output 단위: km
-        # circle과 도산공원과 500m 이상 떨어져 있으면
-        if dis > 500:
-            print(f'거리:{dis}m이므로 제외합니다.')
+        button_style = circle.get_attribute('style') # ex) width: 48.1483px; height: 48.1483px; top: -9357.65px; left: -3266.62px;
+        style = button_style.replace(';','').replace(': ',':').split(' ')
+        top = float(style[2][4:][:-2])
+        left = float(style[3][5:][:-2])
+        loc_circle = (top, left) # top, left 정보를 소수로 가져오기 (창 크기 바꾼다고 달라지지 않음/ 화면을 드래그해서 시점을 바꾸면 바뀜)
+        dis = distance(loc_circle) # dis output 단위: m
+        # circle과 도산공원과 800m 이상 떨어져 있으면 일단 한번 거르기
+        if dis > 600:
+            print(f'원의 거리: {dis}m -> 제외')
             continue  # 건너뛰기
-        print(f'거리:{dis}m이므로 탐색합니다.')
+        print(f'원의 거리: {dis}m -> 탐색')
 
         # 원 버튼(a 태그) 클릭 (circle.click() : 실패)
         circle.send_keys('\n') # 성공! 출처: https://blog.naver.com/PostView.nhn?blogId=kiddwannabe&logNo=221430636045
@@ -97,6 +101,7 @@ def naver_crawler(url):
 
         # 사무실들 가져오기
         samusils = crawler.find_elements(By.CLASS_NAME, 'item_link')
+        crawler.implicitly_wait(2)
 
         # 원 안에 있는 samusil 수 체크
         num_samusil_in_this_circle = 0
@@ -109,11 +114,24 @@ def naver_crawler(url):
             for fieldname in fieldnames:
                 samusil_dict[fieldname] = null
 
+            # 사무실(samusil) 위에 커서 대고 그때 생기는 핀 위치 (클래스네임: btn_current_position) 확인
+            ActionChains(crawler).move_to_element(samusil).pause(0.1).perform()
+            btn_current_position = crawler.find_element(By.CLASS_NAME, 'btn_current_position')
+            current_position = btn_current_position.get_attribute('style')
+            position = current_position.replace('left: ','').replace('top: ','').replace('px','').strip(';').split(';')
+            left = float(position[0])
+            top = float(position[1])
+            dis = distance((top, left))
+            if dis > 500:
+                print(f'매물의 거리: {dis}m -> 제외')
+                continue  # 건너뛰기
+            print(f'매물의 거리: {dis}m -> 추가')
+
             # 좌표
-            samusil_dict['위치'] = loc_circle
+            samusil_dict['위치'] = (top, left)
             # 중심(도산공원)과의 거리
             samusil_dict['거리'] = dis
-
+        
             # 사무실 이름 클릭하여 세부 정보 확인
             samusil.click()
             crawler.implicitly_wait(1)
@@ -133,7 +151,7 @@ def naver_crawler(url):
             except:
                 거래방식 = null
             samusil_dict['거래방식'] = 거래방식
-            print(f'거래방식: {거래방식}')
+            # print(f'거래방식: {거래방식}')
             crawler.implicitly_wait(2) # time.sleep(1)
 
             # 가격
@@ -142,7 +160,7 @@ def naver_crawler(url):
             except:
                 가격 = null
             samusil_dict['가격'] = 가격
-            print(f'가격: {가격}')
+            # print(f'가격: {가격}')
             crawler.implicitly_wait(2) # time.sleep(1)
 
             # 중개보수까지의 테이블 데이터
@@ -153,13 +171,13 @@ def naver_crawler(url):
 
                 if len(data_keys) == 0: # 상한요율만 table_th 속성 없음
                     samusil_dict['상한요율'] = data_values[0].text[4:]
-                    print(f'상한요율: {data_values[0].text[4:]}')
+                    # print(f'상한요율: {data_values[0].text[4:]}')
                 elif data_keys[0].text == '매물설명':
                     data_key = data_keys[0].text
                     data_value = data_values[0].text
                     data_value = data_value.replace('\n','')
                     samusil_dict[data_key] = data_value
-                    print(f'{data_key}: {data_value}')
+                    # print(f'{data_key}: {data_value}')
                 else:
                     for j in range(len(data_keys)):
                         data_key = data_keys[j].text
@@ -167,11 +185,11 @@ def naver_crawler(url):
                         if data_key not in fieldnames:
                             fieldnames.append(data_key)
                         samusil_dict[data_key] = data_value
-                        print(f'{data_key}: {data_value}')
+                        # print(f'{data_key}: {data_value}')
 
             crawler.implicitly_wait(2)
             crawl_data.append(samusil_dict)
-            print(f'현재까지 크롤링한 전체 매물 수: {num_samusil}, 이 circlr에서 크롤링한 매물 수(20개마다 초기화): {num_samusil_in_this_circle}')
+            print(f'현재까지 크롤링한 전체 매물 수: {num_samusil}, 이 circle에서 크롤링한 매물 수(20개마다 초기화): {num_samusil_in_this_circle}')
             print('---------------------------------------------------------------------------------')
             # 샘플을 위해 각 지역별 5개씩만 가져오기
             if num_samusil_in_this_circle == 20:
