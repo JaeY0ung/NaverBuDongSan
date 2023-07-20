@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>부동산정보</title>
+    <style>
+        .flex-container {
+            display: flex;
+            height: 600px;
+            text-align: center;
+        }
+        .mg-r {
+            margin-right: 50px;
+        }
+    </style>
+</head>
+<body>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <h1>도산공원 500m 이내의 부동산정보 통계</h1>
+
+    <div class="flex-container" style="margin-top: 30px;">
+        <div class="mg-r">
+            <table style="height: 500px; text-align: center;" class="table table-bordered", border="1">
+                <tr class="table-primary">
+                    <td>도산공원과<br>떨어진 거리</td>
+                    <td>평균<br>보증금</td>
+                    <td>평균<br>월세 + 관리비</td>
+                    <td>매물 수</td>
+                </tr>
+                {% for i in range(len1) %}
+                <tr>
+                    <td>{{ distance[i] }}</td>
+                    <td>{{ avg_deposit[i] }}</td>
+                    <td>{{ avg_monthly[i] }}</td>
+                    <td>{{ num[i] }}개</td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+        <div style="margin-top: 50px">
+            <div style = "width: 800px;">
+                <canvas id="myChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <h1>도산공원 500m 이내의 부동산 정보</h1>
+    <table border="1" style="text-align: center;">
+        <tr>
+            <th>매물종류</th>
+            <th>가격</th>
+            <th>위치</th>
+            <th>거리</th>
+            <th>소재지</th>
+            <th>계약/전용면적</th>
+            <th>해당층/총층</th>
+            <th>융자금</th>
+            <th>월관리비</th>
+            <th>매물번호</th>
+        </tr>
+        {% for data in datas %}
+        <tr>
+            <td>{{ data['매물종류'] }}</td>
+            <td>{{ data['가격'] }}</td>
+            <td>{{ data['위치'] }}(단위: px)</td>
+            <td>약 {{ data['거리'][0:5] }} km</td>
+            <td>{{ data['소재지'] }}</td>
+            <td>{{ data['계약/전용면적'] }}</td>
+            <td>{{ data['해당층/총층'] }}</td>
+            <td>{{ data['융자금'] }}</td>
+            <td>{{ data['월관리비'] }}</td>
+            <td>{{ data['매물번호'] }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <script>
+        const ctx = document.getElementById('myChart');
+        const mixedChart = new Chart(ctx, {
+            data: {
+                labels: {{ distance | tojson }},
+                datasets: [
+                    {
+                        type: 'bar',
+                        label: '보증금',
+                        yAxisID: 'y-left',
+                        data: {{ avg_deposit_for_chart | tojson }},
+                        order: 3,
+                    },
+                    {
+                        type: 'bar',
+                        label: '월세',
+                        yAxisID: 'y-right',
+                        data: {{ avg_monthly_for_chart | tojson }},
+                        order: 2
+                    },
+                    {
+                        type: 'line',
+                        label: '매물 수',
+                        yAxisID: 'y-noaxis',
+                        data: {{ num | tojson }},
+                        order: 1
+                    }
+                ]
+            },
+            options: {
+                responsive:true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: '도산공원과의 거리별 매물 평균 가격',
+                        position: 'top'
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: '도산공원에서 떨어진 거리(m)'
+                        }
+                    },
+                    'y-right': {
+                        type: 'linear',
+                        position: 'right',
+                        title: {
+                            display: true,
+                            text: '월세 (만원)'
+                        },
+                        grid: {
+                            display: false
+                        }
+                    },
+                    'y-noaxis': {
+                        type: 'linear',
+                        position: 'right',
+                        title: {
+                            display: true,
+                            text: '매물 개수'
+                        },
+                        show: false,
+                        grid: {
+                            display: false
+                        }
+                    }
+                },
+                legend: {
+                    position: 'top'
+                }
+            }
+        });
+       
+    </script>
+
+</body>
+</html>

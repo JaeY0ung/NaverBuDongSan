@@ -1,7 +1,7 @@
-# input: px -> output: km
+# input: px -> output: m
 
 def distance(x,y): 
-    distance = ((x[0]-y[0])**2 + (x[1]-y[1])**2) ** 0.5 * 0.001966323968168877
+    distance = ((x[0]-y[0])**2 + (x[1]-y[1])**2) ** 0.5 * 0.001966323968168877 * 1000
     return distance
 
 # x = (-9382.89, -2786.71)

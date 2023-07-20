@@ -6,7 +6,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 import time
 import csv
-from cal_distance import distance
+from calculator.cal_distance import distance
 
 # 페이지의 맨 밑까지 스크롤 (맥 + 34인치 모니터 기준/ 한페이지에 55개 상점 정보)
 def scroll_down(crawler):
@@ -80,10 +80,10 @@ def naver_crawler(url):
 
         dis = distance(loc_circle, center) # dis output 단위: km
         # circle과 도산공원과 500m 이상 떨어져 있으면
-        if dis > 0.5: # 0.5km
-            print(f'거리:{dis * 1000}m이므로 제외합니다.')
+        if dis > 500:
+            print(f'거리:{dis}m이므로 제외합니다.')
             continue  # 건너뛰기
-        print(f'거리:{dis * 1000}m이므로 탐색합니다.')
+        print(f'거리:{dis}m이므로 탐색합니다.')
 
         # 원 버튼(a 태그) 클릭 (circle.click() : 실패)
         circle.send_keys('\n') # 성공! 출처: https://blog.naver.com/PostView.nhn?blogId=kiddwannabe&logNo=221430636045
@@ -171,10 +171,10 @@ def naver_crawler(url):
 
             crawler.implicitly_wait(2)
             crawl_data.append(samusil_dict)
-            print(f'현재까지 크롤링한 전체 매물 수: {num_samusil}, 이 circlr에서 크롤링한 매물 수(10개마다 초기화): {num_samusil_in_this_circle}')
+            print(f'현재까지 크롤링한 전체 매물 수: {num_samusil}, 이 circlr에서 크롤링한 매물 수(20개마다 초기화): {num_samusil_in_this_circle}')
             print('---------------------------------------------------------------------------------')
             # 샘플을 위해 각 지역별 5개씩만 가져오기
-            if num_samusil_in_this_circle == 10:
+            if num_samusil_in_this_circle == 20:
                 break
 
     crawler.quit()
