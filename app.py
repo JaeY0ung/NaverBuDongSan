@@ -39,7 +39,11 @@ def home():
             deposit = int(strdeposit.replace(',', ''))
 
         # 월세(monthly) -> int로 형변환하여 처리
-        monthly = int(strmonthly.replace(' ', '').replace(',', ''))
+        strmonthly = strmonthly.replace(' ', '').replace(',', '')
+        if len(strmonthly) > 4 :
+            monthly = int(strmonthly.split('억')[0])*10000 + int(strmonthly.split('억')[0])
+        else:
+            monthly = int(strmonthly)
 
         if '만원' in data['월관리비']:
             월관리비 = float(data['월관리비'][:-2])

@@ -88,14 +88,14 @@
                         label: '보증금',
                         yAxisID: 'y-left',
                         data: {{ avg_deposit_for_chart | tojson }},
-                        order: 3,
+                        order: 2,
                     },
                     {
                         type: 'bar',
                         label: '월세',
                         yAxisID: 'y-right',
                         data: {{ avg_monthly_for_chart | tojson }},
-                        order: 2
+                        order: 3
                     },
                     {
                         type: 'line',
